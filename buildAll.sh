@@ -97,9 +97,21 @@ then
   exit 1
 fi
 
+# Run the ci.docker buildAll.sh script with our latest build overrides
 cd ci.docker/build
 buildCommand="./buildAll.sh --version=$version --communityRepository=open-liberty-daily --officialRepository=open-liberty-daily --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
 eval $buildCommand
 
-# now publish all of the images!!!
+# Now save each built image to a tar file, and compress it with gzip
+cd ../..
+mkdir images
+cd images
+while read -r buildContextDirectory imageTag imageTag2
+do
+  echo "Saving open-liberty-daily:$imageTag image to open-liberty-daily_${imageTag}.tar.gz"
+  docker save -o "open-liberty-daily_${imageTag}.tar" "open-liberty-daily:$imageTag"
+  gzip "open-liberty-daily_${imageTag}.tar"
+done < "../ci.docker/build/images.txt"
+
+# Now upload the images to the daily directory on DHE
