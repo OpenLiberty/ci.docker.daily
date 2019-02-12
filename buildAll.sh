@@ -107,7 +107,7 @@ eval $buildCommand
 if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]
 then
   echo "Logging into Docker and pushing images to Docker Hub"
-  docker login -u ${docker.id} -p ${docker.pw}
+  docker login -u ${DOCKERID} -p ${DOCKERPWD}
   while read -r buildContextDirectory imageTag imageTag2 imageTag3
   do
     # only push the 'latest' images right now, more can be added later if needed
