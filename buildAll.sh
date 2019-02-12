@@ -97,9 +97,36 @@ then
   exit 1
 fi
 
+# Run the ci.docker buildAll.sh script with our latest build overrides
 cd ci.docker/build
-buildCommand="./buildAll.sh --version=$version --communityRepository=open-liberty-daily --officialRepository=open-liberty-daily --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
+buildCommand="./buildAll.sh --version=$version --communityRepository=openliberty/daily --officialRepository=openliberty/daily --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
 eval $buildCommand
 
-# now publish all of the images!!!
+## Push images to Docker Hub (if this is a Travis non-pull request build on master)
+if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]
+then
+  echo "Logging into Docker and pushing images to Docker Hub"
+  docker login -u ${docker.id} -p ${docker.pw}
+  while read -r buildContextDirectory imageTag imageTag2 imageTag3
+  do
+    # only push the 'latest' images right now, more can be added later if needed
+    if [ "${imageTag3}" == "latest" ]
+    then
+      echo "Pushing openliberty/daily:${imageTag} to Docker Hub"
+      docker push openliberty/daily:${imageTag}
+      if [ ! -z "${imageTag2}" ]
+      then
+        echo "Pushing openliberty/daily:${imageTag2} to Docker Hub"
+        docker push openliberty/daily:${imageTag2}
+        if [ ! -z "${imageTag3}" ]
+        then
+          echo "Pushing openliberty/daily:${imageTag3} to Docker Hub"
+          docker push openliberty/daily:${imageTag3}
+        fi
+      fi
+    fi
+  done < "images.txt"
+else
+  echo "Not pushing to Docker Hub (only Travis builds of the master branch do that)."
+fi
