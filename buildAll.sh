@@ -42,7 +42,9 @@ fi
 for (( i=${#buildUrls[@]}-1 ; i>=0 ; i-- ))
 do
   testCheck=0
-  allImageFile=
+  runtimeImageFile=
+  javaee8ImageFile=
+  webprofile8ImageFile=
   version=
   echo "Checking build ${buildUrls[i]}"
   # check the files published for the build
@@ -72,20 +74,28 @@ do
       then
         testCheck=1
       fi
-    elif [[ $fileListLine =~ \>(openliberty-all-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
+    elif [[ $fileListLine =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
     then
-      allImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
       version="${BASH_REMATCH[2]}"
-      echo "  allImageFile=$allImageFile"
+      echo "  runtimeImageFile=$runtimeImageFile"
       echo "  version=$version"
+    elif [[ $fileListLine =~ \>(openliberty-javaee8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
+    then
+      javaee8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+      echo "  javaee8ImageFile=$javaee8ImageFile"
+    elif [[ $fileListLine =~ \>(openliberty-webProfile8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
+    then
+      webprofile8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+      echo "  webprofile8ImageFile=$webprofile8ImageFile"
     fi
   done <<< "$fileList"
 
-  if [ ! -z "$allImageFile" ] && [ ! -z "$version" ] && [ "$testCheck" -ne 0 ]
+  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$version" ] && [ "$testCheck" -ne 0 ]
   then
-    javaee8DownloadUrl="${buildUrls[i]}/$allImageFile"
-    runtimeDownloadUrl="${buildUrls[i]}/$allImageFile"
-    webprofile8DownloadUrl="${buildUrls[i]}/$allImageFile"
+    javaee8DownloadUrl="${buildUrls[i]}/$javaee8ImageFile"
+    runtimeDownloadUrl="${buildUrls[i]}/$runtimeImageFile"
+    webprofile8DownloadUrl="${buildUrls[i]}/$webprofile8ImageFile"
     break
   fi
   # check that the install files we need are available for this build
