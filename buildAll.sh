@@ -1,10 +1,13 @@
 #!/bin/bash
 
 # Finds the latest Open Liberty development driver and builds the Docker images based on its install images.
+# If this is a Travis build on master, images are tagged openliberty/daily:<image> and pushed to Docker Hub
 
 usage="Usage: buildAll.sh --buildUrl=<build url (optional)>"
 
 devPublishLocation="https://public.dhe.ibm.com/ibmdl/export/pub/software/openliberty/runtime/nightly/"
+communityRepository=openliberty/open-liberty
+officialRepository=open-liberty
 
 # values above can be overridden by optional arguments when this script is called
 while [ $# -gt 0 ]; do
@@ -42,6 +45,7 @@ fi
 for (( i=${#buildUrls[@]}-1 ; i>=0 ; i-- ))
 do
   testCheck=0
+  fullImageFile=
   runtimeImageFile=
   javaee8ImageFile=
   webprofile8ImageFile=
@@ -88,17 +92,21 @@ do
     then
       webprofile8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
       echo "  webprofile8ImageFile=$webprofile8ImageFile"
+    elif [[ $fileListLine =~ \>(openliberty-all-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
+    then
+      fullImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+      echo "  fullImageFile=$fullImageFile"
     fi
   done <<< "$fileList"
 
-  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$version" ] && [ "$testCheck" -ne 0 ]
+  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$fullImageFile" ] && [ ! -z "$version" ] && [ "$testCheck" -ne 0 ]
   then
+    fullDownloadUrl="${buildUrls[i]}/$fullImageFile"
     javaee8DownloadUrl="${buildUrls[i]}/$javaee8ImageFile"
     runtimeDownloadUrl="${buildUrls[i]}/$runtimeImageFile"
     webprofile8DownloadUrl="${buildUrls[i]}/$webprofile8ImageFile"
     break
   fi
-  # check that the install files we need are available for this build
 done
 
 if [ -z "$version" ] || [ -z "$javaee8DownloadUrl" ] || [ -z "$runtimeDownloadUrl" ] || [ -z "$webprofile8DownloadUrl" ]
@@ -109,32 +117,50 @@ fi
 
 # Run the ci.docker buildAll.sh script with our latest build overrides
 cd ci.docker/build
-buildCommand="./buildAll.sh --version=$version --communityRepository=openliberty/daily --officialRepository=openliberty/daily --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
+buildCommand="./buildAll.sh --version=$version --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
-eval $buildCommand
+#eval $buildCommand
+
+# Build the full image, which is unique to daily builds (just java8-ibm right now, more can be added if needed)
+wget --progress=bar:force $fullDownloadUrl -U UA-Open-Liberty-Docker -O full.zip
+fullDownloadSha=$(sha1sum full.zip | awk '{print $1;}')
+rm -f full.zip
+docker build -t openliberty/daily:full-java8-ibm -t openliberty/daily:full --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} ../../full/java8/ibmjava
 
 ## Push images to Docker Hub (if this is a Travis non-pull request build on master)
 if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]
 then
   echo "Logging into Docker and pushing images to Docker Hub"
   docker login -u ${DOCKERID} -p ${DOCKERPWD}
+
+  echo "Pushing openliberty/daily:full"
+  docker push openliberty/daily:full
+  echo "Pushing openliberty/daily:full-java8-ibm"
+  docker push openliberty/daily:full-java8-ibm
+
   while read -r buildContextDirectory imageTag imageTag2 imageTag3
   do
     # only push the 'latest' images right now, more can be added later if needed
     if [ "${imageTag3}" == "latest" ]
     then
-      echo "Pushing openliberty/daily:${imageTag} to Docker Hub"
-      docker push openliberty/daily:${imageTag}
-      if [ ! -z "${imageTag2}" ]
+      if [[ $buildContextDirectory =~ community ]]
       then
-        echo "Pushing openliberty/daily:${imageTag2} to Docker Hub"
-        docker push openliberty/daily:${imageTag2}
-        if [ ! -z "${imageTag3}" ]
-        then
-          echo "Pushing openliberty/daily:${imageTag3} to Docker Hub"
-          docker push openliberty/daily:${imageTag3}
-        fi
+        origRepository=$communityRepository
+      else
+        origRepository=$officialRepository
       fi
+      for image in "$imageTag" "$imageTag2" "$imageTag3"
+      do
+        if [ ! -z "$image" ]
+        then
+          # re-tag as openliberty/daily
+          echo "Tagging ${origRepository}:${image} openliberty/daily:${imageTag}"
+          docker tag ${origRepository}:${image} openliberty/daily:${image}
+          # push to docker hub
+          echo "Pushing openliberty/daily:${image} to Docker Hub"
+          docker push openliberty/daily:${image}
+        fi
+      done
     fi
   done < "images.txt"
 else
