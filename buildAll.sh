@@ -119,7 +119,7 @@ fi
 cd ci.docker/build
 buildCommand="./buildAll.sh --version=$version --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
-#eval $buildCommand
+eval $buildCommand
 
 # Build the full image, which is unique to daily builds (just java8-ibm right now, more can be added if needed)
 wget --progress=bar:force $fullDownloadUrl -U UA-Open-Liberty-Docker -O full.zip
