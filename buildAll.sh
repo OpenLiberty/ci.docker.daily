@@ -74,7 +74,8 @@ do
           echo "  testsRun=$testsRun"
         fi
       done <<< "$infoJson"
-      if [ "$testsRun" -ne 0 ] && [ "$testsPass" -eq "$testsPass" ]
+      #if [ "$testsRun" -ne 0 ] && [ "$testsPass" -eq "$testsPass" ]
+      if [ "$testsPass" -eq "$testsPass" ]
       then
         testCheck=1
       fi
