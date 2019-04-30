@@ -2,11 +2,13 @@
 FROM ibmjava:8-jre
 ARG LIBERTY_VERSION
 ARG LIBERTY_SHA
+ARG LIBERTY_BUILD_LABEL
 ARG LIBERTY_DOWNLOAD_URL
 
-LABEL maintainer="Alasdair Nottingham" vendor="Open Liberty" url="https://openliberty.io/" github="https://github.com/OpenLiberty/ci.docker.daily"
+LABEL maintainer="Arthur De Magalhaes" vendor="Open Liberty" url="https://openliberty.io/" github="https://github.com/OpenLiberty/ci.docker" \
+      BuildLabel="$LIBERTY_BUILD_LABEL"
 
-COPY docker-server /opt/ol/docker/
+COPY helpers /opt/ol/helpers
 
 # Install Open Liberty
 RUN apt-get update \
@@ -19,32 +21,55 @@ RUN apt-get update \
     && rm /tmp/wlp.zip \
     && rm /tmp/wlp.zip.sha1 \
     && apt-get remove -y unzip \
-    && rm -rf /var/lib/apt/lists/* 
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 1001 -r -g 0 -s /usr/sbin/nologin default \
+    && chown -R 1001:0 /opt/ol/wlp \
+    && chmod -R g+rw /opt/ol/wlp
 
 # Set Path Shortcuts
-ENV PATH=/opt/ol/wlp/bin:/opt/ol/docker/:$PATH \
+ENV PATH=/opt/ol/wlp/bin:/opt/ol/docker/:/opt/ol/helpers/build:$PATH \
     LOG_DIR=/logs \
     WLP_OUTPUT_DIR=/opt/ol/wlp/output \
-    WLP_SKIP_MAXPERMSIZE=true \
-    KEYSTORE_REQUIRED=true
-
-RUN mkdir /logs \
-    && mkdir -p $WLP_OUTPUT_DIR/defaultServer \
-    && ln -s $WLP_OUTPUT_DIR/defaultServer /output \
-    && ln -s /opt/ol/wlp/usr/servers/defaultServer /config \
-    && ln -s /logs $WLP_OUTPUT_DIR/defaultServer/logs \
-    && ln -s /liberty /opt/ol/wlp
+    WLP_SKIP_MAXPERMSIZE=true
 
 # Configure WebSphere Liberty
 RUN /opt/ol/wlp/bin/server create \
-    && rm /config/server.env \
-    && rm -rf $WLP_OUTPUT_DIR/.classCache /output/workarea \
-    && mkdir /config/configDropins \
-    && mkdir /config/configDropins/defaults \
-    && echo "<server description=\"Default Server\"><httpEndpoint id=\"defaultHttpEndpoint\" host=\"*\" /></server>" > /config/configDropins/defaults/open-default-port.xml \
-    && /opt/ol/wlp/bin/server start && /opt/ol/wlp/bin/server stop && rm -rf /output/resources/security/ && rm -rf /output/messaging /logs/*
+    && rm -rf $WLP_OUTPUT_DIR/.classCache /output/workarea
+
+
+# Create symlinks && set permissions for non-root user    
+RUN mkdir /logs \
+    && mkdir -p /opt/ol/wlp/usr/shared/resources/lib.index.cache \
+    && ln -s /opt/ol/wlp/usr/shared/resources/lib.index.cache /lib.index.cache \
+    && mkdir -p $WLP_OUTPUT_DIR/defaultServer \
+    && ln -s $WLP_OUTPUT_DIR/defaultServer /output \
+    && ln -s /opt/ol/wlp/usr/servers/defaultServer /config \
+    && mkdir -p /config/configDropins/defaults \
+    && mkdir -p /config/configDropins/overrides \
+    && ln -s /opt/ol/wlp /liberty \
+    && chown -R 1001:0 /config \
+    && chmod -R g+rw /config \
+    && chown -R 1001:0 /logs \
+    && chmod -R g+rw /logs \
+    && chown -R 1001:0 /opt/ol/wlp/usr \
+    && chmod -R g+rw /opt/ol/wlp/usr \
+    && chown -R 1001:0 /opt/ol/wlp/output \
+    && chmod -R g+rw /opt/ol/wlp/output \
+    && chown -R 1001:0 /opt/ol/helpers \
+    && chmod -R g+rw /opt/ol/helpers \
+    && mkdir /etc/wlp \
+    && chown -R 1001:0 /etc/wlp \
+    && chmod -R g+rw /etc/wlp \
+    && echo "<server description=\"Default Server\"><httpEndpoint id=\"defaultHttpEndpoint\" host=\"*\" /></server>" > /config/configDropins/defaults/open-default-port.xml
+
+
+#These settings are needed so that we can run as a different user than 1001 after server warmup
+ENV RANDFILE=/tmp/.rnd \
+    IBM_JAVA_OPTIONS="-Xshareclasses:name=liberty,nonfatal,cacheDir=/output/.classCache/ ${IBM_JAVA_OPTIONS}"
+
+USER 1001
 
 EXPOSE 9080 9443
 
-ENTRYPOINT ["/opt/ol/docker/docker-server"]
+ENTRYPOINT ["/opt/ol/helpers/runtime/docker-server.sh"]
 CMD ["/opt/ol/wlp/bin/server", "run", "defaultServer"]

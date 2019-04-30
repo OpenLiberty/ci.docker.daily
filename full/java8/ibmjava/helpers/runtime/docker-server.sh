@@ -11,7 +11,12 @@ then
     if [ ! -e $keystorePath ]
     then
       # Generate the keystore.xml
-      export keystore_password=$(openssl rand -base64 32)
+      export PASSWORD=$(openssl rand -base64 32)
+      XML="<server description=\"Default Server\"><keyStore id=\"defaultKeyStore\" password=\"$PASSWORD\" /></server>"
+
+    # Create the keystore.xml file and place in configDropins
+    mkdir -p $(dirname $keystorePath)
+    echo $XML > $keystorePath
     fi
   fi
 fi

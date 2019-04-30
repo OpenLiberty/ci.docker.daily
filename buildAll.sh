@@ -50,6 +50,7 @@ do
   javaee8ImageFile=
   webprofile8ImageFile=
   version=
+  buildLabel=
   echo "Checking build ${buildUrls[i]}"
   # check the files published for the build
   fileList=$(curl -s "${buildUrls[i]}/" | egrep "openliberty|info.json")
@@ -74,17 +75,18 @@ do
           echo "  testsRun=$testsRun"
         fi
       done <<< "$infoJson"
-      #if [ "$testsRun" -ne 0 ] && [ "$testsPass" -eq "$testsPass" ]
-      if [ "$testsPass" -eq "$testsPass" ]
+      if [ "$testsRun" -ne 0 ] && [ "$testsPass" -eq "$testsPass" ]
       then
         testCheck=1
       fi
-    elif [[ $fileListLine =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
+    elif [[ $fileListLine =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
     then
-      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}.zip"
       version="${BASH_REMATCH[2]}"
+      buildLabel="${BASH_REMATCH[3]}"
       echo "  runtimeImageFile=$runtimeImageFile"
       echo "  version=$version"
+      ecdo "  buildLabel=$buildLabel"
     elif [[ $fileListLine =~ \>(openliberty-javaee8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
     then
       javaee8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
@@ -100,7 +102,7 @@ do
     fi
   done <<< "$fileList"
 
-  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$fullImageFile" ] && [ ! -z "$version" ] && [ "$testCheck" -ne 0 ]
+  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$fullImageFile" ] && [ ! -z "$version" ] && [ ! -z "$buildLabel" ] && [ "$testCheck" -ne 0 ]
   then
     fullDownloadUrl="${buildUrls[i]}/$fullImageFile"
     javaee8DownloadUrl="${buildUrls[i]}/$javaee8ImageFile"
@@ -110,7 +112,7 @@ do
   fi
 done
 
-if [ -z "$version" ] || [ -z "$javaee8DownloadUrl" ] || [ -z "$runtimeDownloadUrl" ] || [ -z "$webprofile8DownloadUrl" ]
+if [ -z "$version" ] || [ -z "$buildLabel" ] || [ -z "$javaee8DownloadUrl" ] || [ -z "$runtimeDownloadUrl" ] || [ -z "$webprofile8DownloadUrl" ]
 then
   echo "ERROR: Could not find a valid build with all needed install images available"
   exit 1
@@ -118,7 +120,7 @@ fi
 
 # Run the ci.docker buildAll.sh script with our latest build overrides
 cd ci.docker/build
-buildCommand="./buildAll.sh --version=$version --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
+buildCommand="./buildAll.sh --version=$version -buildLabel=$buildLabel --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
 eval $buildCommand
 
@@ -126,7 +128,7 @@ eval $buildCommand
 wget --progress=bar:force $fullDownloadUrl -U UA-Open-Liberty-Docker -O full.zip
 fullDownloadSha=$(sha1sum full.zip | awk '{print $1;}')
 rm -f full.zip
-docker build -t openliberty/daily:full-java8-ibm -t openliberty/daily:full --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} ../../full/java8/ibmjava
+docker build -t openliberty/daily:full-java8-ibm -t openliberty/daily:full --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} ../../full/java8/ibmjava
 
 ## Push images to Docker Hub (if this is a Travis non-pull request build on master)
 if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]
