@@ -81,12 +81,12 @@ do
       fi
     elif [[ $fileListLine =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
     then
-      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}.zip"
+      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}.zip"
       version="${BASH_REMATCH[2]}"
       buildLabel="${BASH_REMATCH[3]}"
       echo "  runtimeImageFile=$runtimeImageFile"
       echo "  version=$version"
-      ecdo "  buildLabel=$buildLabel"
+      echo "  buildLabel=$buildLabel"
     elif [[ $fileListLine =~ \>(openliberty-javaee8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
     then
       javaee8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
@@ -120,7 +120,7 @@ fi
 
 # Run the ci.docker buildAll.sh script with our latest build overrides
 cd ci.docker/build
-buildCommand="./buildAll.sh --version=$version -buildLabel=$buildLabel --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
+buildCommand="./buildAll.sh --version=$version --buildLabel=$buildLabel --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
 echo "Building all images using command: $buildCommand"
 eval $buildCommand
 
