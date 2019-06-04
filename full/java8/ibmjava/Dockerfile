@@ -5,14 +5,17 @@ ARG LIBERTY_SHA
 ARG LIBERTY_BUILD_LABEL
 ARG LIBERTY_DOWNLOAD_URL
 
-LABEL maintainer="Arthur De Magalhaes" vendor="Open Liberty" url="https://openliberty.io/" github="https://github.com/OpenLiberty/ci.docker" \
-      BuildLabel="$LIBERTY_BUILD_LABEL"
+LABEL org.opencontainers.image.authors="Arthur De Magalhaes, Andy Naumann" \
+      org.opencontainers.image.vendor="Open Liberty" \
+      org.opencontainers.image.url="https://openliberty.io/" \
+      org.opencontainers.image.source="https://github.com/OpenLiberty/ci.docker" \
+      org.opencontainers.image.revision="$LIBERTY_BUILD_LABEL"
 
 COPY helpers /opt/ol/helpers
 
 # Install Open Liberty
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends unzip \
+    && apt-get install -y --no-install-recommends unzip openssl \
     && rm -rf /var/lib/apt/lists/* \
     && wget -q $LIBERTY_DOWNLOAD_URL -U UA-Open-Liberty-Docker -O /tmp/wlp.zip \
     && echo "$LIBERTY_SHA  /tmp/wlp.zip" > /tmp/wlp.zip.sha1 \
@@ -21,6 +24,7 @@ RUN apt-get update \
     && rm /tmp/wlp.zip \
     && rm /tmp/wlp.zip.sha1 \
     && apt-get remove -y unzip \
+    && apt-get remove -y wget \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -u 1001 -r -g 0 -s /usr/sbin/nologin default \
     && chown -R 1001:0 /opt/ol/wlp \
