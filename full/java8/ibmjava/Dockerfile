@@ -5,7 +5,7 @@ ARG LIBERTY_SHA
 ARG LIBERTY_BUILD_LABEL
 ARG LIBERTY_DOWNLOAD_URL
 
-LABEL org.opencontainers.image.authors="Arthur De Magalhaes, Andy Naumann" \
+LABEL org.opencontainers.image.authors="Arthur De Magalhaes, Chris Potter" \
       org.opencontainers.image.vendor="Open Liberty" \
       org.opencontainers.image.url="https://openliberty.io/" \
       org.opencontainers.image.source="https://github.com/OpenLiberty/ci.docker" \
