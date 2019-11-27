@@ -37,7 +37,8 @@ main () {
     echo "****** Found latest build"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
     echo "****** Starting daily build..."
-    ./build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
+    cd ci.docker
+    ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
 }
 ## @returns a list of strings representing the nightly liberty builds, old to newest
 fetch_liberty_urls() {
