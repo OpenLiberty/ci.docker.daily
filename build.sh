@@ -75,13 +75,13 @@ build_latest_tag() {
     local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java13-openj9-ubi java8-ibmjava-ubi)
 
     for i in "${!tag_exts_ubi[@]}"; do
-        local docker_dir="${IMAGE_ROOT}/kernel/${tag}"
+        local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
         local full_path="${docker_dir}/Dockerfile.ubi.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
             local build_image="${REPO}:${tag}-${tag_exts_ubi[$i]}"
 
             echo "****** Building image ${build_image}..."
-            docker build --no-cache=true -t "${build_image}" -f "${full_path}" "${docker_dir}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl}
+            docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
             handle_results $? "${build_image}"
         else
             echo "Could not find Dockerfile at path ${full_path}"
@@ -89,14 +89,14 @@ build_latest_tag() {
         fi
     done
 
-    local docker_dir="${IMAGE_ROOT}/kernel/${tag}"
+    local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
     local full_path="${docker_dir}/Dockerfile.ubuntu.adoptopenjdk8"
 
     if [[ -f "${full_path}" ]]; then
         local ubuntu_image="${REPO}:${tag}-adoptopenjdk8"
 
         echo "****** Building image ${ubuntu_image}..."
-        docker build --no-cache=true -t "${ubuntu_image}" -f "${full_path}" "${docker_dir}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl}
+        docker build --no-cache=true -t "${ubuntu_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}" 
         handle_results $? "${ubuntu_image}"
     else
         echo "Could not find Dockerfile at path ${full_path}"

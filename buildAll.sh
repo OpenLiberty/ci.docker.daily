@@ -36,8 +36,8 @@ main () {
     fi
     echo "****** Found latest build"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
-    echo "****** Starting daily build..."
     cd ci.docker
+    echo "****** Starting daily build from $(pwd)..."
     ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
 }
 ## @returns a list of strings representing the nightly liberty builds, old to newest
