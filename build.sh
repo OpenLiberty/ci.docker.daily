@@ -59,7 +59,7 @@ main () {
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
     fi
 
-    local tags=(kernel full)
+    local tags=(kernel)
 
     for tag in "${tags[@]}"; do
       build_latest_tag $tag
@@ -78,7 +78,7 @@ build_latest_tag() {
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
         local full_path="${docker_dir}/Dockerfile.ubi.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
-            local build_image="${REPO}:${tag}-${tag_exts_ubi[$i]}"
+            local build_image="${REPO}:full-${tag_exts_ubi[$i]}"
 
             echo "****** Building image ${build_image}..."
             docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
@@ -93,7 +93,7 @@ build_latest_tag() {
     local full_path="${docker_dir}/Dockerfile.ubuntu.adoptopenjdk8"
 
     if [[ -f "${full_path}" ]]; then
-        local ubuntu_image="${REPO}:${tag}-adoptopenjdk8"
+        local ubuntu_image="${REPO}:full-adoptopenjdk8"
 
         echo "****** Building image ${ubuntu_image}..."
         docker build --no-cache=true -t "${ubuntu_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}" 

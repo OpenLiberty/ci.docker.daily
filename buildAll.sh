@@ -12,6 +12,8 @@ readonly REPO=openliberty/open-liberty
 readonly OFFICIAL_REPO=open-liberty
 
 main () {
+    ## build ibmjava base image
+    build_ubi_base
     ## Fetch list of urls
     local urls=$(fetch_liberty_urls)
     ## Loop through list in reverse order, break on valid build
@@ -39,6 +41,16 @@ main () {
     cd ci.docker
     echo "****** Starting daily build from $(pwd)..."
     ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
+}
+## builds the ibmjava base
+build_ubi_base() {
+  docker pull registry.access.redhat.com/ubi8/ubi
+  mkdir java
+  wget https://raw.githubusercontent.com/ibmruntimes/ci.docker/master/ibmjava/8/jre/ubi/Dockerfile -O java/Dockerfile
+  ## replace references to user 1001 as we need to build as root
+  sed -i.bak '/useradd -u 1001*/d' ./java/Dockerfile && sed -i.bak '/USER 1001/d' ./java/Dockerfile && rm java/Dockerfile.bak
+  ## tag UBI 8 as ibmjava:8-ubi and UBI 7 for older versions as ibmjava:8-ibmsfj-ubi-min
+  docker build -t ibmjava:8-ubi java
 }
 ## @returns a list of strings representing the nightly liberty builds, old to newest
 fetch_liberty_urls() {
