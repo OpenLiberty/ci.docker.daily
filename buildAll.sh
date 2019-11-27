@@ -3,169 +3,110 @@
 # Finds the latest Open Liberty development driver and builds the Docker images based on its install images.
 # If this is a Travis build on master, images are tagged openliberty/daily:<image> and pushed to Docker Hub
 
-usage="Usage: buildAll.sh --buildUrl=<build url (optional)>"
+set -e
 
-devPublishLocation="https://public.dhe.ibm.com/ibmdl/export/pub/software/openliberty/runtime/nightly/"
-communityRepository=openliberty/open-liberty
-officialRepository=open-liberty
+readonly usage="Usage: buildAll.sh --buildUrl=<build url (optional)>"
 
-# values above can be overridden by optional arguments when this script is called
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --buildUrl=*)
-      buildUrl="${1#*=}"
-      ;;
-    *)
-      echo "Error: Invalid argument - $1"
-      echo "$usage"
-      exit 1
-  esac
-  shift
-done
+readonly NIGHTLY_URL="https://public.dhe.ibm.com/ibmdl/export/pub/software/openliberty/runtime/nightly/"
+readonly REPO=openliberty/open-liberty
+readonly OFFICIAL_REPO=open-liberty
 
-if [ -z "$buildUrl" ]
-then
-  # List the published builds available in $devPublishLocation
-  buildList=$(curl -s "$devPublishLocation" | grep folder.gif)
-  buildUrls=()
+main () {
+    ## Fetch list of urls
+    local urls=$(fetch_liberty_urls)
+    ## Loop through list in reverse order, break on valid build
+    args=
+    for url in $urls; do
+        echo "****** Parsing url: ${url}"
+        args=$(parse_build "${url}")
+        echo $args
+        if [[ ! -z "${args}" ]]; then
+            args=($args) #convert space seperate stirng to arr
+            break
+        fi
+    done
+    ## Set arguments for the build script
+    local fullImageUrl="${args[0]}"
+    local buildLabel="${args[1]}"
+    local version="${args[2]}"
 
-  # parse out the build directory name
-  while read -r buildListLine
-  do
-    if [[ $buildListLine =~ .*([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}).* ]]
-    then
-      buildUrls+=("${devPublishLocation}${BASH_REMATCH[1]}")
+    if [[ -z "${fullImageUrl}" || -z "${buildLabel}" || -z "${version}" ]]; then
+        echo "ERROR: Could not find a valid build with all needed install images available"
+        exit 1
     fi
-  done <<< "$buildList"
-else
-  buildUrls[0]=$buildUrl
-fi
 
-# loop through build directories in reverse order
-for (( i=${#buildUrls[@]}-1 ; i>=0 ; i-- ))
-do
-  testCheck=0
-  fullImageFile=
-  runtimeImageFile=
-  javaee8ImageFile=
-  webprofile8ImageFile=
-  version=
-  buildLabel=
-  echo "Checking build ${buildUrls[i]}"
-  # check the files published for the build
-  fileList=$(curl -s "${buildUrls[i]}/" | egrep "openliberty|info.json")
-  while read -r fileListLine
-  do
-    # if we find the info.json file for this build, download it and check that tests ran and they all passed
-    if [[ $fileListLine =~ info.json ]]
-    then
-      # download the info.json, make sure tests ran and they all passed
-      testsRun=0
-      testsPass=0
-      infoJson=$(curl -s "${buildUrls[i]}/info.json" | grep test)
-      while read -r jsonLine
-      do
-        if [[ $jsonLine =~ \"test_passed\":[[:blank:]]\"([0-9]+)\" ]]
-        then
+    printf "URL: %s \nLabel: %s \nVersion: %s" "${fullImageUrl}" "${buildLabel}" "${version}"
+}
+## @returns a list of strings representing the nightly liberty builds, old to newest
+fetch_liberty_urls() {
+    ## Generate Download URL, SHA, build label
+    local buildList=$(curl -s "${NIGHTLY_URL}" | grep folder.gif)
+    local buildUrls=()
+
+    while read -r currentLine; do
+        if is_build_link "${currentLine}"; then
+            buildUrls+=("${NIGHTLY_URL}${BASH_REMATCH[1]}")
+        fi
+    done <<< "${buildList}"
+    ## this is equivalent to returning a space seperated str of urls (iterable)
+    echo "${buildUrls[@]}"
+}
+## @returns
+parse_build() {
+    local buildUrl="$1"
+    declare fullImageFile buildLabel version output
+    ## loop through items listed under build and format arguments
+    fileList=$(curl -s "${buildUrl}/" | egrep "openliberty|info.json")
+    while read -r item; do
+        ## if the tests did not pass return empty output string
+        if is_info_file "${item}" && ! verify_build "${item}" "${buildUrl}"; then
+            break
+        elif is_full_file "${item}"; then
+            fullImageUrl="${buildUrl}/${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}.zip"
+            version="${BASH_REMATCH[2]}"
+            buildLabel="${BASH_REMATCH[3]}"
+            output="${fullImageUrl} ${buildLabel} ${version}"
+        fi
+    done <<< "${fileList}"
+    ## return the required build arguments for running build script
+    echo "${output}"
+}
+## @returns status code of the test
+verify_build() {
+    local info_file="$1"; shift
+    local current_url="$1"
+    # variables for comparison in return
+    declare testsPass testsRun
+    # fetch jsonfile
+    local json=$(curl -s "${current_url}/info.json" | grep test)
+    while read -r jsonLine; do
+        if [[ $jsonLine =~ \"test_passed\":[[:blank:]]\"([0-9]+)\" ]]; then
           testsPass=${BASH_REMATCH[1]}
-          echo "  testsPass=$testsPass"
-        elif [[ $jsonLine =~ \"total_tests\":[[:blank:]]\"([0-9]+)\" ]]
-        then
+        elif [[ $jsonLine =~ \"total_tests\":[[:blank:]]\"([0-9]+)\" ]]; then
           testsRun=${BASH_REMATCH[1]}
-          echo "  testsRun=$testsRun"
         fi
-      done <<< "$infoJson"
-      if [ "$testsRun" -ne 0 ] && [ "$testsPass" -eq "$testsPass" ]
-      then
-        testCheck=1
-      fi
-    elif [[ $fileListLine =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
-    then
-      runtimeImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}.zip"
-      version="${BASH_REMATCH[2]}"
-      buildLabel="${BASH_REMATCH[3]}"
-      echo "  runtimeImageFile=$runtimeImageFile"
-      echo "  version=$version"
-      echo "  buildLabel=$buildLabel"
-    elif [[ $fileListLine =~ \>(openliberty-javaee8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
-    then
-      javaee8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-      echo "  javaee8ImageFile=$javaee8ImageFile"
-    elif [[ $fileListLine =~ \>(openliberty-webProfile8-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
-    then
-      webprofile8ImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-      echo "  webprofile8ImageFile=$webprofile8ImageFile"
-    elif [[ $fileListLine =~ \>(openliberty-all-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(.*\.zip) ]]
-    then
-      fullImageFile="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-      echo "  fullImageFile=$fullImageFile"
-    fi
-  done <<< "$fileList"
+    done <<< "${json}"
+    ## return status
+    [[ "${testsRun}" -ne 0 && "${testsPass}" -eq "${testsRun}" ]]
+}
 
-  if [ ! -z "$runtimeImageFile" ] && [ ! -z "$javaee8ImageFile" ] && [ ! -z "$webprofile8ImageFile" ] && [ ! -z "$fullImageFile" ] && [ ! -z "$version" ] && [ ! -z "$buildLabel" ] && [ "$testCheck" -ne 0 ]
-  then
-    fullDownloadUrl="${buildUrls[i]}/$fullImageFile"
-    javaee8DownloadUrl="${buildUrls[i]}/$javaee8ImageFile"
-    runtimeDownloadUrl="${buildUrls[i]}/$runtimeImageFile"
-    webprofile8DownloadUrl="${buildUrls[i]}/$webprofile8ImageFile"
-    break
-  fi
-done
+### REGEX conditionals
+is_build_link() {
+    local link_tag="$1"
+    [[ $link_tag =~ .*([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}).* ]]
+}
+is_kernel_file() {
+    local str="$1"
+    [[ $str =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
+}
+is_full_file() {
+    local str="$1"
 
-if [ -z "$version" ] || [ -z "$buildLabel" ] || [ -z "$javaee8DownloadUrl" ] || [ -z "$runtimeDownloadUrl" ] || [ -z "$webprofile8DownloadUrl" ]
-then
-  echo "ERROR: Could not find a valid build with all needed install images available"
-  exit 1
-fi
+    [[ $str =~ \>(openliberty-all-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
+}
+is_info_file() {
+    local str="$1"
 
-# Run the ci.docker buildAll.sh script with our latest build overrides
-cd ci.docker/build
-buildCommand="./buildAll.sh --version=$version --buildLabel=$buildLabel --javaee8DownloadUrl=$javaee8DownloadUrl --runtimeDownloadUrl=$runtimeDownloadUrl --webprofile8DownloadUrl=$webprofile8DownloadUrl"
-echo "Building all images using command: $buildCommand"
-eval $buildCommand
-
-# Build the full image, which is unique to daily builds (just java8-ibm right now, more can be added if needed)
-wget --progress=bar:force $fullDownloadUrl -U UA-Open-Liberty-Docker -O full.zip
-fullDownloadSha=$(sha1sum full.zip | awk '{print $1;}')
-rm -f full.zip
-docker build -t openliberty/daily:full-java8-ibm -t openliberty/daily:full --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} ../../full/java8/ibmjava
-
-## Push images to Docker Hub (if this is a Travis non-pull request build on master)
-if [ "$TRAVIS" == "true" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]
-then
-  echo "Logging into Docker and pushing images to Docker Hub"
-  docker login -u ${DOCKERID} -p ${DOCKERPWD}
-
-  echo "Pushing openliberty/daily:full"
-  docker push openliberty/daily:full
-  echo "Pushing openliberty/daily:full-java8-ibm"
-  docker push openliberty/daily:full-java8-ibm
-
-  while read -r buildContextDirectory imageTag imageTag2 imageTag3
-  do
-    # only push the 'latest' images right now, more can be added later if needed
-    if [ "${imageTag3}" == "latest" ]
-    then
-      if [[ $buildContextDirectory =~ community ]]
-      then
-        origRepository=$communityRepository
-      else
-        origRepository=$officialRepository
-      fi
-      for image in "$imageTag" "$imageTag2" "$imageTag3"
-      do
-        if [ ! -z "$image" ]
-        then
-          # re-tag as openliberty/daily
-          echo "Tagging ${origRepository}:${image} openliberty/daily:${imageTag}"
-          docker tag ${origRepository}:${image} openliberty/daily:${image}
-          # push to docker hub
-          echo "Pushing openliberty/daily:${image} to Docker Hub"
-          docker push openliberty/daily:${image}
-        fi
-      done
-    fi
-  done < "images.txt"
-else
-  echo "Not pushing to Docker Hub (only Travis builds of the master branch do that)."
-fi
+    [[ $str =~ info.json ]]
+}
+main

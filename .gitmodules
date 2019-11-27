@@ -1,1 +1,4 @@
 
+[submodule "ci.docker"]
+	path = ci.docker
+	url = git@github.com:OpenLiberty/ci.docker
