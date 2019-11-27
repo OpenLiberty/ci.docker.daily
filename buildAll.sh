@@ -18,8 +18,8 @@ main () {
     args=
     for url in $urls; do
         echo "****** Parsing url: ${url}"
-        args=$(parse_build "${url}")
-        echo $args
+        args=$(parse_build_url "${url}")
+        # if args is not empty string build was successful
         if [[ ! -z "${args}" ]]; then
             args=($args) #convert space seperate stirng to arr
             break
@@ -34,8 +34,10 @@ main () {
         echo "ERROR: Could not find a valid build with all needed install images available"
         exit 1
     fi
-
-    printf "URL: %s \nLabel: %s \nVersion: %s" "${fullImageUrl}" "${buildLabel}" "${version}"
+    echo "****** Found latest build"
+    printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
+    echo "****** Starting daily build..."
+    ./build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
 }
 ## @returns a list of strings representing the nightly liberty builds, old to newest
 fetch_liberty_urls() {
@@ -52,16 +54,16 @@ fetch_liberty_urls() {
     echo "${buildUrls[@]}"
 }
 ## @returns
-parse_build() {
+parse_build_url() {
     local buildUrl="$1"
     declare fullImageFile buildLabel version output
     ## loop through items listed under build and format arguments
     fileList=$(curl -s "${buildUrl}/" | egrep "openliberty|info.json")
-    while read -r item; do
+    while read -r current_file; do
         ## if the tests did not pass return empty output string
-        if is_info_file "${item}" && ! verify_build "${item}" "${buildUrl}"; then
+        if is_info_file "${current_file}" && ! is_build_success "${current_file}" "${buildUrl}"; then
             break
-        elif is_full_file "${item}"; then
+        elif is_full_file "${current_file}"; then
             fullImageUrl="${buildUrl}/${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}.zip"
             version="${BASH_REMATCH[2]}"
             buildLabel="${BASH_REMATCH[3]}"
@@ -72,7 +74,7 @@ parse_build() {
     echo "${output}"
 }
 ## @returns status code of the test
-verify_build() {
+is_build_success() {
     local info_file="$1"; shift
     local current_url="$1"
     # variables for comparison in return

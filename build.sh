@@ -5,14 +5,11 @@
 #  By default this will not build the versioned images (non-latest versions), but this can be enabled by using the --buildVersionedImages.
 set -Eeo pipefail
 
-usage="Usage (all args optional): buildAll.sh --version=<version> --buildLabel=<build label> --communityRepository=<communityRepository> --officialRepository=<officialRepository>  --fullDownloadUrl=<fulldownload image download url>"
+readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> --communityRepository=<communityRepository> --officialRepository=<officialRepository>  --fullDownloadUrl=<fulldownload image download url>"
 
-version=19.0.0.11
-buildLabel=cl191120191031-0300
 communityRepository=openliberty/open-liberty
 officialRepository=open-liberty
 
-fullDownloadUrl="https://repo1.maven.org/maven2/io/openliberty/openliberty-kernel/${version}/openliberty-kernel-${version}.zip"
 
 readonly IMAGE_ROOT="releases" # the name of the dir holding all versions
 readonly REPO="openliberty/daily"
@@ -45,6 +42,12 @@ main () {
     shift
     done
 
+    if [[ -z "${buildLabel}" || -z "${fullDownloadUrl}" || -z "${version}" ]]; then
+      echo "Error: buildLabel, fullDownloadUrl, and version are required flags"
+      echo "${usage}"
+      exit 1
+    fi
+
     wget --progress=bar:force $fullDownloadUrl -U UA-Open-Liberty-Docker -O full.zip
     fullDownloadSha=$(sha1sum full.zip | awk '{print $1;}')
     rm -f full.zip
@@ -70,7 +73,7 @@ build_latest_tag() {
     # set image information arrays
     local file_exts_ubi=(adoptopenjdk8 adoptopenjdk11 adoptopenjdk13 ibmjava8)
     local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java13-openj9-ubi java8-ibmjava-ubi)
- 
+
     for i in "${!tag_exts_ubi[@]}"; do
         local docker_dir="${IMAGE_ROOT}/kernel/${tag}"
         local full_path="${docker_dir}/Dockerfile.ubi.${file_exts_ubi[$i]}"
@@ -99,7 +102,6 @@ build_latest_tag() {
         echo "Could not find Dockerfile at path ${full_path}"
         exit 1
     fi
-    
 }
 
 ## push the built image if build was successful and branch is master

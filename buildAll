@@ -1,5 +1,10 @@
 #!/bin/bash
 
+##################################################################
+#
+#   TODO: Delete this file when builds stable using new build.sh
+#
+##################################################################
 # Finds the latest Open Liberty development driver and builds the Docker images based on its install images.
 # If this is a Travis build on master, images are tagged openliberty/daily:<image> and pushed to Docker Hub
 
