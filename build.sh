@@ -10,6 +10,7 @@ readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> -
 readonly IMAGE_ROOT="releases" # the name of the dir holding all versions
 readonly REPO="openliberty/daily"
 readonly LOCAL_REPO="daily"
+readonly LATEST_TARGET="full-java8-openj9-ubi"
 
 main () {
     # values above can be overridden by optional arguments when this script is called
@@ -54,6 +55,9 @@ main () {
     for tag in "${tags[@]}"; do
       build_latest_tag $tag
     done
+    # create the latest tag for default pulls
+    echo "****** Pushing tag ${LATEST_TARGET} as latest"
+    tag_latest
 }
 
 ## build the latest version of open liberty which has the new tag system
@@ -109,6 +113,16 @@ handle_results () {
     docker push ${image}
   else
     echo "Not pushing to Docker Hub because this is not a production build of the master branch"
+  fi
+}
+
+## create the latest tag for default pull
+tag_latest() {
+  if [[ "${push}" = "true" ]]; then
+    docker tag "${REPO}:${LATEST_TARGET}" "${REPO}:latest"
+    docker push "${REPO}:latest"
+  else
+    echo "****** Skipping push of latest tag as this is not a master build"
   fi
 }
 
