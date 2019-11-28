@@ -66,12 +66,12 @@ build_latest_tag() {
     local tag="$1"
     local tag_label="full"
     # set image information arrays
-    local file_exts_ubi=(adoptopenjdk8 adoptopenjdk11 adoptopenjdk13 ibmjava8)
-    local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java13-openj9-ubi java8-ibmjava-ubi)
+    local file_exts_ubi=(ubi.adoptopenjdk8 ubi.adoptopenjdk11 ubi.adoptopenjdk13 ubi.ibmjava8 ubuntu.adoptopenjdk8)
+    local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java13-openj9-ubi java8-ibmjava-ubi java8-openj9)
 
     for i in "${!tag_exts_ubi[@]}"; do
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
-        local full_path="${docker_dir}/Dockerfile.ubi.${file_exts_ubi[$i]}"
+        local full_path="${docker_dir}/Dockerfile.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
             local build_image="${REPO}:${tag_label}-${tag_exts_ubi[$i]}"
 
@@ -83,20 +83,6 @@ build_latest_tag() {
             exit 1
         fi
     done
-
-    local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
-    local full_path="${docker_dir}/Dockerfile.ubuntu.adoptopenjdk8"
-
-    if [[ -f "${full_path}" ]]; then
-        local ubuntu_image="${REPO}:${tag_label}-adoptopenjdk8"
-
-        echo "****** Building image ${ubuntu_image}..."
-        docker build --no-cache=true -t "${ubuntu_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}" 
-        handle_results $? "${ubuntu_image}"
-    else
-        echo "Could not find Dockerfile at path ${full_path}"
-        exit 1
-    fi
 }
 
 ## push the built image if build was successful and branch is master
