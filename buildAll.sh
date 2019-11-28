@@ -5,11 +5,9 @@
 
 set -e
 
-readonly usage="Usage: buildAll.sh --buildUrl=<build url (optional)>"
+readonly usage="Usage: buildAll.sh"
 
 readonly NIGHTLY_URL="https://public.dhe.ibm.com/ibmdl/export/pub/software/openliberty/runtime/nightly/"
-readonly REPO=openliberty/open-liberty
-readonly OFFICIAL_REPO=open-liberty
 
 main () {
     ## build ibmjava base image
@@ -17,13 +15,13 @@ main () {
     ## Fetch list of urls
     local urls=$(fetch_liberty_urls)
     ## Loop through list in reverse order, break on valid build
-    args=
+    local args
     for url in $urls; do
         echo "****** Parsing url: ${url}"
         args=$(parse_build_url "${url}")
         # if args is not empty string build was successful
         if [[ ! -z "${args}" ]]; then
-            args=($args) #convert space seperate stirng to arr
+            args=($args) #convert space seperate string to arr
             break
         fi
     done
@@ -36,20 +34,22 @@ main () {
         echo "ERROR: Could not find a valid build with all needed install images available"
         exit 1
     fi
+
     echo "****** Found latest build"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
     cd ci.docker
     echo "****** Starting daily build from $(pwd)..."
     ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
 }
-## builds the ibmjava base
+## builds the ibmjava base for ./build.sh script
 build_ubi_base() {
   docker pull registry.access.redhat.com/ubi8/ubi
+  ## pull Dockerfile from ibmjava
   mkdir java
   wget https://raw.githubusercontent.com/ibmruntimes/ci.docker/master/ibmjava/8/jre/ubi/Dockerfile -O java/Dockerfile
+
   ## replace references to user 1001 as we need to build as root
   sed -i.bak '/useradd -u 1001*/d' ./java/Dockerfile && sed -i.bak '/USER 1001/d' ./java/Dockerfile && rm java/Dockerfile.bak
-  ## tag UBI 8 as ibmjava:8-ubi and UBI 7 for older versions as ibmjava:8-ibmsfj-ubi-min
   docker build -t ibmjava:8-ubi java
 }
 ## @returns a list of strings representing the nightly liberty builds, old to newest
@@ -66,7 +66,7 @@ fetch_liberty_urls() {
     ## this is equivalent to returning a space seperated str of urls (iterable)
     echo "${buildUrls[@]}"
 }
-## @returns
+## @returns space seperated string if successfully, empty string on failure
 parse_build_url() {
     local buildUrl="$1"
     declare fullImageFile buildLabel version output
@@ -106,6 +106,7 @@ is_build_success() {
 }
 
 ### REGEX conditionals
+## Usage for all: `if is_condition <param>; then ...`
 is_build_link() {
     local link_tag="$1"
     [[ $link_tag =~ .*([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}).* ]]
