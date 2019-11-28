@@ -5,11 +5,7 @@
 #  By default this will not build the versioned images (non-latest versions), but this can be enabled by using the --buildVersionedImages.
 set -Eeo pipefail
 
-readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> --communityRepository=<communityRepository> --officialRepository=<officialRepository>  --fullDownloadUrl=<fulldownload image download url>"
-
-communityRepository=openliberty/open-liberty
-officialRepository=open-liberty
-
+readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> --fullDownloadUrl=<fulldownload image download url>"
 
 readonly IMAGE_ROOT="releases" # the name of the dir holding all versions
 readonly REPO="openliberty/daily"
@@ -24,12 +20,6 @@ main () {
         ;;
         --buildLabel=*)
         buildLabel="${1#*=}"
-        ;;
-        --communityRepository=*)
-        communityRepository="${1#*=}"
-        ;;
-        --officialRepository=*)
-        officialRepository="${1#*=}"
         ;;
         --fullDownloadUrl=*)
         fullDownloadUrl="${1#*=}"
@@ -70,6 +60,7 @@ main () {
 build_latest_tag() {
     local version="latest"
     local tag="$1"
+    local tag_label="full"
     # set image information arrays
     local file_exts_ubi=(adoptopenjdk8 adoptopenjdk11 adoptopenjdk13 ibmjava8)
     local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java13-openj9-ubi java8-ibmjava-ubi)
@@ -78,7 +69,7 @@ build_latest_tag() {
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
         local full_path="${docker_dir}/Dockerfile.ubi.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
-            local build_image="${REPO}:full-${tag_exts_ubi[$i]}"
+            local build_image="${REPO}:${tag_label}-${tag_exts_ubi[$i]}"
 
             echo "****** Building image ${build_image}..."
             docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
@@ -93,7 +84,7 @@ build_latest_tag() {
     local full_path="${docker_dir}/Dockerfile.ubuntu.adoptopenjdk8"
 
     if [[ -f "${full_path}" ]]; then
-        local ubuntu_image="${REPO}:full-adoptopenjdk8"
+        local ubuntu_image="${REPO}:${tag_label}-adoptopenjdk8"
 
         echo "****** Building image ${ubuntu_image}..."
         docker build --no-cache=true -t "${ubuntu_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}" 
