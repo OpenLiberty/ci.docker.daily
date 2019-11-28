@@ -47,7 +47,7 @@ main () {
     push="false"
     if [[ "$TRAVIS" = "true" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" = "master" ]]; then
         push="true"
-        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+        echo "$DOCKERPWD" | docker login -u "$DOCKERID" --password-stdin
     fi
 
     local tags=(kernel)
