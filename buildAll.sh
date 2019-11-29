@@ -14,11 +14,12 @@ main () {
     build_ubi_base
     ## Fetch list of urls
     local urls=$(fetch_liberty_urls)
+    urls=($urls)
     ## Loop through list in reverse order, break on valid build
     local args
-    for url in $urls; do
-        echo "****** Parsing url: ${url}"
-        args=$(parse_build_url "${url}")
+    for (( i=${#urls[@]}-1 ; i>=0 ; i-- )); do
+        echo "****** Parsing url: ${urls[i]}"
+        args=$(parse_build_url "${urls[i]}")
         # if args is not empty string build was successful
         if [[ ! -z "${args}" ]]; then
             args=($args) #convert space seperate string to arr
