@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/OpenLiberty/ci.docker.daily.svg?branch=master)](https://travis-ci.org/OpenLiberty/ci.docker.daily)
+
 # ci.docker.daily
 Daily development builds of the Open Liberty Docker images.
 
