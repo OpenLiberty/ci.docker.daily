@@ -114,7 +114,7 @@ is_build_link() {
 }
 is_kernel_file() {
     local str="$1"
-    [[ $str =~ \>(openliberty-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
+    [[ $str =~ \>(openliberty-kernel)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
 }
 is_full_file() {
     local str="$1"
