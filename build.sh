@@ -50,7 +50,10 @@ main () {
         echo "$DOCKERPWD" | docker login -u "$DOCKERID" --password-stdin
     fi
 
-    local tags=(kernel-slim)
+    #TODO: Add building of kernel-slim to this build. That will require:
+    #        - The downloading of the open-liberty-kernel...zip file
+    #        - The modification of this script, and the buildAll.sh script to pass along multiple zips
+    local tags=(full)
 
     for tag in "${tags[@]}"; do
       build_latest_tag $tag
@@ -64,7 +67,7 @@ main () {
 build_latest_tag() {
     local version="latest"
     local tag="$1"
-    local tag_label="full"
+
     # set image information arrays
     local file_exts_ubi=(ubi.adoptopenjdk8 ubi.adoptopenjdk11 ubi.adoptopenjdk14 ubi.ibmjava8 ubuntu.adoptopenjdk8)
     local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java14-openj9-ubi java8-ibmjava-ubi java8-openj9)
@@ -73,7 +76,7 @@ build_latest_tag() {
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
         local full_path="${docker_dir}/Dockerfile.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
-            local build_image="${REPO}:${tag_label}-${tag_exts_ubi[$i]}"
+            local build_image="${REPO}:${tag}-${tag_exts_ubi[$i]}"
 
             echo "****** Building image ${build_image}..."
             docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
