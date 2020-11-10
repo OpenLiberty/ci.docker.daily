@@ -50,7 +50,7 @@ main () {
         echo "$DOCKERPWD" | docker login -u "$DOCKERID" --password-stdin
     fi
 
-    local tags=(kernel)
+    local tags=(full)
 
     for tag in "${tags[@]}"; do
       build_latest_tag $tag
