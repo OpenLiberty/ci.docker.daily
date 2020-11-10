@@ -30,17 +30,20 @@ main () {
     local fullImageUrl="${args[0]}"
     local buildLabel="${args[1]}"
     local version="${args[2]}"
+    local kernelImageUrl="${args[3]}"
 
-    if [[ -z "${fullImageUrl}" || -z "${buildLabel}" || -z "${version}" ]]; then
+    if [[ -z "${fullImageUrl}" || -z "${buildLabel}" || -z "${version}" || -z "${kernelImageUrl}" ]]; then
         echo "ERROR: Could not find a valid build with all needed install images available"
         exit 1
     fi
 
     echo "****** Found latest build"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
+    printf "URL: %s \nLabel: %s \nVersion: %s\n" "${kernelImageUrl}" "${buildLabel}" "${version}"
+    exit 0;
     cd ci.docker
     echo "****** Starting daily build from $(pwd)..."
-    ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}"
+    ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}" --kernelDownloadUrl="${kernelImageUrl}"
 }
 ## builds the ibmjava base for ./build.sh script
 build_ubi_base() {
@@ -82,8 +85,14 @@ parse_build_url() {
             version="${BASH_REMATCH[2]}"
             buildLabel="${BASH_REMATCH[3]}"
             output="${fullImageUrl} ${buildLabel} ${version}"
+        elif is_kernel_file "${current_file}"; then
+            kernelImageUrl="${buildUrl}/${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}.zip"
         fi
     done <<< "${fileList}"
+
+    # Construct the full output list
+    output="${fullImageUrl} ${buildLabel} ${version} ${kernelImageUrl}"
+
     ## return the required build arguments for running build script
     echo "${output}"
 }
@@ -114,7 +123,7 @@ is_build_link() {
 }
 is_kernel_file() {
     local str="$1"
-    [[ $str =~ \>(openliberty-kernel)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
+    [[ $str =~ \>(openliberty-kernel-)([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-(.*)\.zip ]]
 }
 is_full_file() {
     local str="$1"
