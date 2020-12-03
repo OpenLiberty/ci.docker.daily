@@ -37,7 +37,7 @@ main () {
     done
 
     if [[ -z "${buildLabel}" || -z "${fullDownloadUrl}" || -z "${version}" || -z "${kernelDownloadUrl}" ]]; then
-      echo "Error: buildLabel, fullDownloadUrl, and version are required flags"
+      echo "Error: buildLabel, fullDownloadUrl, version, and kernelDownloadUrl are required flags"
       echo "${usage}"
       exit 1
     fi
