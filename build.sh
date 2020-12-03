@@ -5,7 +5,7 @@
 #  By default this will not build the versioned images (non-latest versions), but this can be enabled by using the --buildVersionedImages.
 set -Eeo pipefail
 
-readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> --fullDownloadUrl=<fulldownload image download url>"
+readonly usage="Usage: build.sh --version=<version> --buildLabel=<build label> --fullDownloadUrl=<fulldownload image download url> --kernelDownloadUrl=<kerneldownload image download url>"
 
 readonly IMAGE_ROOT="releases" # the name of the dir holding all versions
 readonly REPO="openliberty/daily"
@@ -25,6 +25,9 @@ main () {
         --fullDownloadUrl=*)
         fullDownloadUrl="${1#*=}"
         ;;
+        --kernelDownloadUrl=*)
+        kernelDownloadUrl="${1#*=}"
+        ;;
         *)
         echo "Error: Invalid argument - $1"
         echo "$usage"
@@ -33,8 +36,8 @@ main () {
     shift
     done
 
-    if [[ -z "${buildLabel}" || -z "${fullDownloadUrl}" || -z "${version}" ]]; then
-      echo "Error: buildLabel, fullDownloadUrl, and version are required flags"
+    if [[ -z "${buildLabel}" || -z "${fullDownloadUrl}" || -z "${version}" || -z "${kernelDownloadUrl}" ]]; then
+      echo "Error: buildLabel, fullDownloadUrl, version, and kernelDownloadUrl are required flags"
       echo "${usage}"
       exit 1
     fi
@@ -43,6 +46,10 @@ main () {
     fullDownloadSha=$(sha1sum full.zip | awk '{print $1;}')
     rm -f full.zip
 
+    wget --progress=bar:force $kernelDownloadUrl -U UA-Open-Liberty-Docker -O kernel.zip
+    kernelDownloadSha=$(sha1sum kernel.zip | awk '{print $1;}')
+    rm -f kernel.zip
+
     ## Check if master build and define docker push bool accordingly
     push="false"
     if [[ "$TRAVIS" = "true" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" = "master" ]]; then
@@ -50,7 +57,7 @@ main () {
         echo "$DOCKERPWD" | docker login -u "$DOCKERID" --password-stdin
     fi
 
-    local tags=(full)
+    local tags=(full kernel-slim)
 
     for tag in "${tags[@]}"; do
       build_latest_tag $tag
@@ -64,7 +71,7 @@ main () {
 build_latest_tag() {
     local version="latest"
     local tag="$1"
-    local tag_label="full"
+
     # set image information arrays
     local file_exts_ubi=(ubi.adoptopenjdk8 ubi.adoptopenjdk11 ubi.adoptopenjdk14 ubi.ibmjava8 ubuntu.adoptopenjdk8)
     local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java14-openj9-ubi java8-ibmjava-ubi java8-openj9)
@@ -73,11 +80,16 @@ build_latest_tag() {
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
         local full_path="${docker_dir}/Dockerfile.${file_exts_ubi[$i]}"
         if [[ -f "${full_path}" ]]; then
-            local build_image="${REPO}:${tag_label}-${tag_exts_ubi[$i]}"
+            local build_image="${REPO}:${tag}-${tag_exts_ubi[$i]}"
 
             echo "****** Building image ${build_image}..."
-            docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
+            if [[ "${tag}" = "full" ]]; then
+              docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${fullDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${fullDownloadUrl} "${docker_dir}"
             handle_results $? "${build_image}"
+            elif [[ "${tag}" = "kernel-slim" ]]; then
+              docker build --no-cache=true -t "${build_image}" -f "${full_path}" --build-arg LIBERTY_VERSION=${version} --build-arg LIBERTY_BUILD_LABEL=${buildLabel} --build-arg LIBERTY_SHA=${kernelDownloadSha} --build-arg LIBERTY_DOWNLOAD_URL=${kernelDownloadUrl} "${docker_dir}"
+            handle_results $? "${build_image}"
+            fi
         else
             echo "Could not find Dockerfile at path ${full_path}"
             exit 1
