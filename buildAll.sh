@@ -40,7 +40,6 @@ main () {
     echo "****** Found latest build"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${fullImageUrl}" "${buildLabel}" "${version}"
     printf "URL: %s \nLabel: %s \nVersion: %s\n" "${kernelImageUrl}" "${buildLabel}" "${version}"
-    exit 0;
     cd ci.docker
     echo "****** Starting daily build from $(pwd)..."
     ../build.sh --version="${version}" --buildLabel="${buildLabel}" --fullDownloadUrl="${fullImageUrl}" --kernelDownloadUrl="${kernelImageUrl}"
