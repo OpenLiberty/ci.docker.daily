@@ -73,8 +73,8 @@ build_latest_tag() {
     local tag="$1"
 
     # set image information arrays
-    local file_exts_ubi=(ubi.adoptopenjdk8 ubi.adoptopenjdk11 ubi.adoptopenjdk14 ubi.ibmjava8 ubuntu.adoptopenjdk8)
-    local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java14-openj9-ubi java8-ibmjava-ubi java8-openj9)
+    local file_exts_ubi=(ubi.adoptopenjdk8 ubi.adoptopenjdk11 ubi.adoptopenjdk15 ubi.ibmjava8 ubuntu.adoptopenjdk8 ubuntu.adoptopenjdk11)
+    local tag_exts_ubi=(java8-openj9-ubi java11-openj9-ubi java15-openj9-ubi java8-ibmjava-ubi java8-openj9 java11-openj9)
 
     for i in "${!tag_exts_ubi[@]}"; do
         local docker_dir="${IMAGE_ROOT}/${version}/${tag}"
