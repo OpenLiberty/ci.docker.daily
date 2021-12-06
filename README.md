@@ -1,6 +1,9 @@
 [![Build Status](https://travis-ci.org/OpenLiberty/ci.docker.daily.svg?branch=master)](https://travis-ci.org/OpenLiberty/ci.docker.daily)
 
-# ci.docker.daily
+# ci.docker.daily (Not maintained)
+
+**This repo is no longer used/maintained.** Instead this GitHub Enterprise repo is used to build daily Liberty images: https://github.ibm.com/was-docker/open-liberty-daily
+
 Daily development builds of the Open Liberty Docker images.
 
 Uses the build scripts and Dockerfiles from submodule https://github.com/OpenLiberty/ci.docker 
